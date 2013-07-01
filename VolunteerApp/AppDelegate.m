@@ -6,44 +6,113 @@
 //  Copyright (c) 2013 Nisha Shah. All rights reserved.
 //
 
+NSString *const SCSessionStateChangedNotification =
+@"com.facebook.Scrumptious:SCSessionStateChangedNotification";
+
+
+
 #import "AppDelegate.h"
+#import "VolunteerViewController.h"
+#import <Parse/Parse.h>
+
 
 @implementation AppDelegate
+@synthesize navigationController,mainViewController;
+@synthesize selectedOpportunity;
+@synthesize userLogInStatus;
+@synthesize volunteerVC;
+@synthesize browseOpportunityVC;
+@synthesize userFBLogInStatus;
+@synthesize userSettingsVC;
+@synthesize interestTableVC;
+@synthesize userFbEmail;
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
+    //added for profile picture
+    [FBProfilePictureView class];
+
+    //Parse keys
+    [Parse setApplicationId:@"M9HDjHaW7ygJrNHr0qy5taUmJXLphqlv1xmFwgEF"
+                  clientKey:@"c1FNBR2CyvKYHwY79wuAeqaD0caouRvGD4EawSMb"];
+    [PFAnalytics trackAppOpenedWithLaunchOptions:launchOptions];
+    
     self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
-    // Override point for customization after application launch.
     self.window.backgroundColor = [UIColor whiteColor];
+    
+    // Setting the "Volunteer View Controller" as the root view controller.
+    self.mainViewController = [[VolunteerViewController alloc]initWithNibName:@"VolunteerViewController" bundle:nil];
+    self.navigationController = [[UINavigationController alloc]initWithRootViewController:self.mainViewController];
+    self.window.rootViewController = self.navigationController;
     [self.window makeKeyAndVisible];
     return YES;
 }
 
-- (void)applicationWillResignActive:(UIApplication *)application
+-(void)openSession
 {
-    // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
-    // Use this method to pause ongoing tasks, disable timers, and throttle down OpenGL ES frame rates. Games should use this method to pause the game.
+    // set permissions for accessing the user basic info,emailId
+    [FBSession openActiveSessionWithReadPermissions:@[@"basic_info", @"email"]
+                                       allowLoginUI:YES
+                                  completionHandler:
+     ^(FBSession *session,
+       FBSessionState state, NSError *error) {
+         [self sessionStateChanged:session state:state error:error];
+     }];
+    
+    
+    
+   }
+
+- (BOOL)application:(UIApplication *)application
+            openURL:(NSURL *)url
+  sourceApplication:(NSString *)sourceApplication
+         annotation:(id)annotation
+{
+    return [FBSession.activeSession handleOpenURL:url];
 }
 
-- (void)applicationDidEnterBackground:(UIApplication *)application
+
+- (void)sessionStateChanged:(FBSession *)session
+                      state:(FBSessionState) state
+                      error:(NSError *)error
 {
-    // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later. 
-    // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
+    switch (state) {
+        case FBSessionStateOpen: 
+        {
+            /* Display the page you want to display after user logged in . */
+            userFBLogInStatus=YES;
+                   self.userSettingsVC=[[UserSettingViewController alloc]init];
+            [self.navigationController pushViewController:self.userSettingsVC animated:YES];
+                    }
+            break;
+        case FBSessionStateClosed:
+        case FBSessionStateClosedLoginFailed:
+            //put the page u want to display on failed login
+            [self.navigationController popToRootViewControllerAnimated:NO];
+            self.userFBLogInStatus=NO;
+            [FBSession.activeSession closeAndClearTokenInformation];
+            break;
+            
+        default: NSLog(@"Default");break;
+            
+    }
+    
+    //added for  ProfilePicture
+    [[NSNotificationCenter defaultCenter]
+     postNotificationName:SCSessionStateChangedNotification
+     object:session];
+    
+        if (error) {
+        UIAlertView *alertView = [[UIAlertView alloc]
+                                  initWithTitle:@"Error"
+                                  message:error.localizedDescription
+                                  delegate:nil
+                                  cancelButtonTitle:@"OK"
+                                  otherButtonTitles:nil];
+        [alertView show];
+    }    
 }
 
-- (void)applicationWillEnterForeground:(UIApplication *)application
-{
-    // Called as part of the transition from the background to the inactive state; here you can undo many of the changes made on entering the background.
-}
 
-- (void)applicationDidBecomeActive:(UIApplication *)application
-{
-    // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
-}
-
-- (void)applicationWillTerminate:(UIApplication *)application
-{
-    // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
-}
 
 @end
